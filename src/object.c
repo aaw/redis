@@ -118,6 +118,12 @@ robj *createZsetZiplistObject(void) {
     return o;
 }
 
+robj *createKsetObject(void) {
+    hyperloglog* hll = hyperloglogNew();
+    robj *o = createObject(REDIS_KSET,hll);
+    return o;
+}
+
 void freeStringObject(robj *o) {
     if (o->encoding == REDIS_ENCODING_RAW) {
         sdsfree(o->ptr);
