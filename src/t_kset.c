@@ -85,7 +85,7 @@ void kunioncardCommand(redisClient *c) {
 
 
 void kintercardCommand(redisClient *c) {
-    int i, j, sign;
+    int i, j;
     int setcount = c->argc-1;
     robj **setkeys = c->argv+1;
     robj **sets = zmalloc(sizeof(robj*)*setcount);
@@ -117,11 +117,10 @@ void kintercardCommand(redisClient *c) {
        practice) and the complexity of computing the size of the 
        intersection is exponential in the number of sets involved. */
     for (i = 1; i < (1 << setcount); i++) {
-        sign = __builtin_parity(i) == 1 ? 1 : -1;
         for (j = 0; j < setcount; j++) {
             tempsets[j] = (i & (1 << j)) ? sets[j] : NULL;
         }
-        sum += sign * kunioncardHelper(c, tempsets, setcount, result);
+        sum += (__builtin_parity(i) ? 1 : -1) * kunioncardHelper(c, tempsets, setcount, result);
     }
     
     addReplyLongLong(c,sum);

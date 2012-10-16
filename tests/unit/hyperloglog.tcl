@@ -111,14 +111,14 @@ start_server {tags {"hyperloglog"}} {
             for {set i 0} {$i < $num_tests} {incr i} {
                 r kadd largeset key:$i
                 set relative_error [expr abs($i - [r kcard largeset] + 1)/double($i + 1)]
-                if {$relative_error > $expected_relative_error} {incr bad_estimates}
+                if {$relative_error > 2 * $expected_relative_error} {incr bad_estimates}
                 if {$relative_error > 6 * $expected_relative_error} {incr really_bad_estimates}
             }
             # There's nothing magic about these bounds, different hash functions and
             # different key sequences can yield different results, but the attempt is
             # to show that at every step along the way to 50000 elements we're getting
             # reasonable estimates.
-            assert {$bad_estimates < $num_tests * 0.50}
+            assert {$bad_estimates < $num_tests * 0.10}
             assert {$really_bad_estimates < $num_tests * 0.05}
         }
         
@@ -134,9 +134,9 @@ start_server {tags {"hyperloglog"}} {
             set relative_error_1 [expr abs(22000 - [r kcard smalliunion1])/22000.0]
             set relative_error_2 [expr abs(22000 - [r kcard smalliunion2])/22000.0]
             set relative_error_union [expr abs(42000 - [r kunioncard smalliunion1 smalliunion2])/42000.0]
-            assert {$relative_error_1 < 3 * $expected_relative_error}
-            assert {$relative_error_2 < 3 * $expected_relative_error}
-            assert {$relative_error_union < 3 * $expected_relative_error}
+            assert {$relative_error_1 < $expected_relative_error}
+            assert {$relative_error_2 < $expected_relative_error}
+            assert {$relative_error_union < $expected_relative_error}
         }
         
         test {KUNIONCARD returns approximate cardinalities for larger sets with large intersections} {
@@ -151,9 +151,9 @@ start_server {tags {"hyperloglog"}} {
             set relative_error_1 [expr abs(22000 - [r kcard largeiunion1])/22000.0]
             set relative_error_2 [expr abs(22000 - [r kcard largeiunion2])/22000.0]
             set relative_error_union [expr abs(24000 - [r kunioncard largeiunion1 largeiunion2])/24000.0]
-            assert {$relative_error_1 < 3 * $expected_relative_error}
-            assert {$relative_error_2 < 3 * $expected_relative_error}
-            assert {$relative_error_union < 3 * $expected_relative_error}           
+            assert {$relative_error_1 < $expected_relative_error}
+            assert {$relative_error_2 < $expected_relative_error}
+            assert {$relative_error_union < $expected_relative_error}           
         }
         
         test {KINTERCARD returns approximate cardinalities for larger sets with small intersections} {
@@ -167,10 +167,10 @@ start_server {tags {"hyperloglog"}} {
             }
             set relative_error_1 [expr abs(22000 - [r kcard smalliinter1])/22000.0]
             set relative_error_2 [expr abs(22000 - [r kcard smalliinter2])/22000.0]
-            set relative_error_intersection [expr abs(2000 - [r kintercard smalliinter1 smalliinter2])/2000.0]
-            assert {$relative_error_1 < 3 * $expected_relative_error}
-            assert {$relative_error_2 < 3 * $expected_relative_error}
-            assert {$relative_error_intersection < 3 * $expected_relative_error}            
+            set relative_error_intersection [expr abs(2000 - [r kintercard smalliinter1 smalliinter2])/42000.0]
+            assert {$relative_error_1 < $expected_relative_error}
+            assert {$relative_error_2 < $expected_relative_error}
+            assert {$relative_error_intersection < $expected_relative_error}            
         }
         
         test {KINTERCARD returns approximate cardinalities for larger sets with large intersections} {
@@ -184,10 +184,10 @@ start_server {tags {"hyperloglog"}} {
             }
             set relative_error_1 [expr abs(22000 - [r kcard largeiinter1])/22000.0]
             set relative_error_2 [expr abs(22000 - [r kcard largeiinter2])/22000.0]
-            set relative_error_intersection [expr abs(20000 - [r kintercard largeiinter1 largeiinter2])/20000.0]
-            assert {$relative_error_1 < 3 * $expected_relative_error}
-            assert {$relative_error_2 < 3 * $expected_relative_error}
-            assert {$relative_error_intersection < 3 * $expected_relative_error}                    
+            set relative_error_intersection [expr abs(20000 - [r kintercard largeiinter1 largeiinter2])/24000.0]
+            assert {$relative_error_1 < $expected_relative_error}
+            assert {$relative_error_2 < $expected_relative_error}
+            assert {$relative_error_intersection < $expected_relative_error}                    
         }
 
     }
