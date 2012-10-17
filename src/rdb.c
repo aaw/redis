@@ -430,6 +430,8 @@ int rdbSaveObjectType(rio *rdb, robj *o) {
             return rdbSaveType(rdb,REDIS_RDB_TYPE_HASH);
         else
             redisPanic("Unknown hash encoding");
+    case REDIS_KSET:
+        return rdbSaveType(rdb,REDIS_RDB_TYPE_KSET);
     default:
         redisPanic("Unknown object type");
     }
@@ -559,6 +561,9 @@ int rdbSaveObject(rio *rdb, robj *o) {
             redisPanic("Unknown hash encoding");
         }
 
+    } else if (o->type == REDIS_KSET) {
+        if ((n = rdbSaveRawString(rdb,(unsigned char*)((hyperloglog*)o->ptr)->contents,HLL_M)) == -1) return -1;
+        nwritten += n;
     } else {
         redisPanic("Unknown object type");
     }
@@ -986,6 +991,11 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
                 redisPanic("Unknown encoding");
                 break;
         }
+    } else if (rdbtype == REDIS_RDB_TYPE_KSET) {
+        if ((ele = rdbLoadEncodedStringObject(rdb)) == NULL) return NULL;
+        o = createKsetObject();
+        memcpy(((hyperloglog*)o->ptr)->contents, ele->ptr, HLL_M);
+        decrRefCount(ele);
     } else {
         redisPanic("Unknown object type");
     }
