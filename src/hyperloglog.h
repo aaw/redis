@@ -8,11 +8,12 @@
 #define HLL_ALPHA (0.7213/(1 + 1.079/(1 << HLL_B)))
 
 typedef struct hyperloglog {
-    int8_t contents[HLL_M];
+    int8_t counters[HLL_M];
+    void *maxHashes[HLL_M];
 } hyperloglog;
 
 hyperloglog *hyperloglogNew(void);
-uint64_t hyperloglogCard(hyperloglog* hll);
-void hyperloglogAdd(hyperloglog* hll, const unsigned char* value, int len);
+uint64_t hyperloglogCard(hyperloglog *hll);
+int hyperloglogAdd(hyperloglog *hll, const unsigned char *value, int len);
 
 #endif // __HYPERLOGLOG_H

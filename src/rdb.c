@@ -562,8 +562,22 @@ int rdbSaveObject(rio *rdb, robj *o) {
         }
 
     } else if (o->type == REDIS_KSET) {
-        if ((n = rdbSaveRawString(rdb,(unsigned char*)((hyperloglog*)o->ptr)->contents,HLL_M)) == -1) return -1;
+        hyperloglog *hll = (hyperloglog*)o->ptr;
+        int i, numMaxHashes = 0;
+
+        for (i = 0; i < HLL_M; i++) {
+            if (hll->maxHashes[i] != NULL) numMaxHashes++;
+        }
+
+        if ((n = rdbSaveLen(rdb,numMaxHashes)) == -1) return -1;
         nwritten += n;
+
+        for (int i = 0; i < HLL_M; i++) {
+            if (hll->maxHashes[i] != NULL) {
+                if ((n = rdbSaveStringObject(rdb,hll->maxHashes[i])) == -1) return -1;
+                nwritten += n;
+            }
+        }
     } else {
         redisPanic("Unknown object type");
     }
@@ -992,10 +1006,17 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
                 break;
         }
     } else if (rdbtype == REDIS_RDB_TYPE_KSET) {
-        if ((ele = rdbLoadEncodedStringObject(rdb)) == NULL) return NULL;
+        int bucketIndex;
         o = createKsetObject();
-        memcpy(((hyperloglog*)o->ptr)->contents, ele->ptr, HLL_M);
-        decrRefCount(ele);
+        hyperloglog *hll = (hyperloglog*)o->ptr;
+
+        if ((len = rdbLoadLen(rdb,NULL)) == REDIS_RDB_LENERR) return NULL;
+
+        while(len--) {
+            if ((ele = rdbLoadEncodedStringObject(rdb)) == NULL) return NULL;
+            bucketIndex = hyperloglogAdd(hll, (unsigned char*)ele->ptr, sdslen((sds)ele->ptr));
+            hll->maxHashes[bucketIndex] = ele;
+        }
     } else {
         redisPanic("Unknown object type");
     }

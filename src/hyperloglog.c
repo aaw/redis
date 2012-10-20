@@ -7,7 +7,8 @@
 
 hyperloglog *hyperloglogNew(void) {
     hyperloglog *hll = zmalloc(sizeof(hyperloglog));
-    memset(hll->contents, 0, sizeof(hll->contents));
+    memset(hll->counters, 0, sizeof(hll->counters));
+    memset(hll->maxHashes, 0, sizeof(hll->maxHashes));
     return hll; 
 }
 
@@ -19,7 +20,7 @@ uint64_t hyperloglogCard(hyperloglog* hll) {
     int i, exponent;
     
     for (i = 0; i < HLL_M; i++) {
-        exponent = hll->contents[i];
+        exponent = hll->counters[i];
         sum += pow(2, -exponent);
         if (exponent > 0) non_zeros++;
     }
@@ -95,10 +96,18 @@ static int murmurhash3(const unsigned char* value, int len) {
     return h1;
 }
 
-void hyperloglogAdd(hyperloglog* hll, const unsigned char* value, int len) {
+/* Add a value to the set. Returns -1 if nothing has changed in the
+   HyperLogLog data structure or the index of the bucket that's changed
+   so that the caller can then swap out data kept in maxHashes */
+int hyperloglogAdd(hyperloglog* hll, const unsigned char* value, int len) {
     int hash = murmurhash3(value, len);
     int bucket = hash & (HLL_M - 1);
     int first_one = __builtin_clz(hash) + 1;
     int rho = first_one < (HLL_HASH_BITS + 1) ? first_one : (HLL_HASH_BITS + 1);
-    if (hll->contents[bucket] < rho) hll->contents[bucket] = rho;
+    int returnVal = -1;
+    if (hll->counters[bucket] < rho) {
+        hll->counters[bucket] = rho;
+        returnVal = bucket;
+    }
+    return returnVal;
 }

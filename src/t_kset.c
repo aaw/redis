@@ -1,9 +1,10 @@
 #include "redis.h"
 
 void kaddCommand(redisClient *c) {
-    robj *kset;
-    int j;
-    
+    robj *kset, *maxPtr, *currentVal;
+    int j, bucketModified;
+    hyperloglog *hll;
+
     kset = lookupKeyWrite(c->db,c->argv[1]);
     if (kset == NULL) {
         kset = createKsetObject();
@@ -15,9 +16,16 @@ void kaddCommand(redisClient *c) {
         }
     }
     
+    hll = (hyperloglog*)kset->ptr;
     for (j = 2; j < c->argc; j++) {
-        c->argv[j] = tryObjectEncoding(c->argv[j]);
-        hyperloglogAdd((hyperloglog*)kset->ptr, (unsigned char*)c->argv[j]->ptr, sdslen((sds)c->argv[j]->ptr)); 
+        currentVal = tryObjectEncoding(c->argv[j]);
+        bucketModified = hyperloglogAdd(hll, (unsigned char*)currentVal->ptr, sdslen((sds)currentVal->ptr));
+        if (bucketModified > -1) {
+            incrRefCount(currentVal);
+            maxPtr = (robj*)hll->maxHashes[bucketModified];
+            if (maxPtr) decrRefCount(maxPtr);
+            hll->maxHashes[bucketModified] = currentVal;
+        }
     }
     signalModifiedKey(c->db,c->argv[1]);
     server.dirty++;
@@ -38,16 +46,16 @@ static uint64_t kunioncardHelper(redisClient *c, robj** sets, int setcount, hype
     hyperloglog* set;
     
     for (j = 0; j < HLL_M; j++) {
-        result->contents[j] = 0;
+        result->counters[j] = 0;
     }
     
     for (i = 0; i < setcount; i++) {
         if (!sets[i]) continue;
         set = (hyperloglog*)sets[i]->ptr;
         for (j = 0; j < HLL_M; j++) {
-            sketch_counter = set->contents[j];
-            if (sketch_counter > result->contents[j])
-                result->contents[j] = sketch_counter;
+            sketch_counter = set->counters[j];
+            if (sketch_counter > result->counters[j])
+                result->counters[j] = sketch_counter;
         }
     }
     

@@ -799,6 +799,37 @@ int rewriteHashObject(rio *r, robj *key, robj *o) {
     return 1;
 }
 
+/* Emit the commands needed to rebuild a kset object
+ * The function returns 0 on error, 1 on success. */
+int rewriteKSetObject(rio *r, robj *key, robj *o) {
+
+    hyperloglog *hll = (hyperloglog*)o->ptr;
+    int i, cmd_items, items = 0, count = 0;
+
+    for (i = 0; i < HLL_M; i++) {
+        if (hll->maxHashes[i] != NULL) items++;
+    }
+
+    for (i = 0; i < HLL_M; i++) {
+        if (hll->maxHashes[i] == NULL) continue;
+
+        if (count == 0) {
+            cmd_items = (items > REDIS_AOF_REWRITE_ITEMS_PER_CMD) ?
+                REDIS_AOF_REWRITE_ITEMS_PER_CMD : items;
+
+            if (rioWriteBulkCount(r,'*',2+cmd_items*2) == 0) return 0;
+            if (rioWriteBulkString(r,"KADD",4) == 0) return 0;
+            if (rioWriteBulkObject(r,key) == 0) return 0; 
+        }
+
+        if (rioWriteBulkObject(r,hll->maxHashes[i]) == 0) return 0;
+        if (++count == REDIS_AOF_REWRITE_ITEMS_PER_CMD) count = 0;
+        items--;
+    }
+
+    return 1;
+}
+
 /* Write a sequence of commands able to fully rebuild the dataset into
  * "filename". Used both by REWRITEAOF and BGREWRITEAOF.
  *
@@ -868,6 +899,8 @@ int rewriteAppendOnlyFile(char *filename) {
                 if (rewriteSortedSetObject(&aof,&key,o) == 0) goto werr;
             } else if (o->type == REDIS_HASH) {
                 if (rewriteHashObject(&aof,&key,o) == 0) goto werr;
+            } else if (o->type == REDIS_KSET) {
+                if (rewriteKSetObject(&aof,&key,o) == 0) goto werr;
             } else {
                 redisPanic("Unknown object type");
             }
