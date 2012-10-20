@@ -12,6 +12,10 @@ hyperloglog *hyperloglogNew(void) {
     return hll; 
 }
 
+/* Estimate the cardinality of a set. This is a pretty direct translation of
+   the program described in Figure 3 of the paper "HyperLogLOg: The analysis of
+   a near-optimal cardinality estimation algorithm" by Flajolet, Fusy, Gandouet
+   and Meunier from the 2007 Conference on Analysis of Algorithms. */
 uint64_t hyperloglogCard(hyperloglog* hll) {
     const double upper_bound = (double)(1ULL << 32);
     double sum = 0;

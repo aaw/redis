@@ -187,6 +187,14 @@ void freeHashObject(robj *o) {
     }
 }
 
+void freeKsetObject(robj *o) {
+    hyperloglog* hll = (hyperloglog*)o->ptr;
+    for(int i = 0; i < HLL_M; i++) {
+        if (hll->maxHashes[i] != NULL) decrRefCount(hll->maxHashes[i]);
+    }
+    zfree(hll);
+}
+
 void incrRefCount(robj *o) {
     o->refcount++;
 }
@@ -202,6 +210,7 @@ void decrRefCount(void *obj) {
         case REDIS_SET: freeSetObject(o); break;
         case REDIS_ZSET: freeZsetObject(o); break;
         case REDIS_HASH: freeHashObject(o); break;
+        case REDIS_KSET: freeKsetObject(o); break;
         default: redisPanic("Unknown object type"); break;
         }
         zfree(o);

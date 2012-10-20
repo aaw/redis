@@ -18,7 +18,7 @@ void kaddCommand(redisClient *c) {
     
     hll = (hyperloglog*)kset->ptr;
     for (j = 2; j < c->argc; j++) {
-        currentVal = tryObjectEncoding(c->argv[j]);
+        currentVal = c->argv[j];
         bucketModified = hyperloglogAdd(hll, (unsigned char*)currentVal->ptr, sdslen((sds)currentVal->ptr));
         if (bucketModified > -1) {
             incrRefCount(currentVal);
